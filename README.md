@@ -1,5 +1,7 @@
 # google-apps-package-generator
 
+See explanations and examples at https://developers.google.com/apps-script/guides/html/best-practices and http://googleappscripting.com/doget-dopost-tutorial-examples/
+
 Simple Tasks is a sample web app built using Apps Script that provides limited
 read and write access to your data in
 [Google Tasks](https://mail.google.com/tasks/canvas). It was created using the
