@@ -6,114 +6,34 @@
 <script>
   // When the page loads.
   $(function() {
-    $('#tasklist').bind('change', loadTasks);
-    $('#new-task').bind('submit', onNewTaskFormSubmit);
-    loadTaskLists();
+    $('#new-package').bind('submit', onCreatePackageFormSubmit);
   });
 
-  /**
-   * Load the available task lists.
-   */
-  function loadTaskLists() {
-    google.script.run.withSuccessHandler(showTaskLists)
-        .withFailureHandler(showError)
-        .getTaskLists();
+
+  function preSubmit(){
+    $('#loading').show();
+    $('#create-button').prop('disabled', true);
   }
-
-  /**
-   * Show the returned task lists in the dropdown box.
-   * @param {Array.<Object>} taskLists The task lists to show.
-   */
-  function showTaskLists(taskLists) {
-    var select = $('#tasklist');
-    select.empty();
-    taskLists.forEach(function(taskList) {
-      var option = $('<option>')
-          .attr('value', taskList.id)
-          .text(taskList.name);
-      select.append(option);
-    });
-    loadTasks();
-  }
-
-  /**
-   * Load the tasks in the currently selected task list.
-   */
-  function loadTasks() {
-    $('#tasks').text('Loading...');
-    var taskListId = $('#tasklist').val();
-    google.script.run.withSuccessHandler(showTasks)
-        .withFailureHandler(showError)
-        .getTasks(taskListId);
-  }
-
-  /**
-   * Show the returned tasks on the page.
-   * @param {Array.<Object>} tasks The tasks to show.
-   */
-  function showTasks(tasks) {
-    var list = $('#tasks').empty();
-    if (tasks.length > 0) {
-      tasks.forEach(function(task) {
-        var item = $('<li>');
-        var checkbox = $('<input type="checkbox">')
-            .data('taskId', task.id)
-            .bind('change', onCheckBoxChange);
-        item.append(checkbox);
-
-        var title = $('<span>')
-            .text(task.title);
-        item.append(title);
-
-        if (task.completed) {
-          checkbox.prop('checked', true);
-          title.css('text-decoration', 'line-through')
-        }
-
-        list.append(item);
-      });
-    } else {
-      list.text('No tasks');
-    }
-  }
-
-  /**
-   * A callback function that runs when a task is checked or unchecked.
-   */
-  function onCheckBoxChange() {
-    var checkbox = $(this);
-    var title = checkbox.siblings('span');
-    var isChecked = checkbox.prop('checked');
-    var taskListId = $('#tasklist').val();
-    var taskId = checkbox.data('taskId');
-    if (isChecked) {
-      title.css('text-decoration', 'line-through');
-    } else {
-      title.css('text-decoration', 'none');
-    }
-    google.script.run.withSuccessHandler(function() {
-      title.effect("highlight", {
-        duration: 1500
-      });
-    }).withFailureHandler(showError)
-      .setCompleted(taskListId, taskId, isChecked);
+  function postSubmit(){
+    $('#loading').hide();
+    $('#create-button').prop('disabled', false);
   }
 
   /**
    * A callback function that runs when the new task form is submitted.
    */
-  function onNewTaskFormSubmit() {
-    var taskListId = $('#tasklist').val();
-    var titleTextBox = $('#task-title');
-    var title = titleTextBox.val();
-    google.script.run.withSuccessHandler(function() {
-      titleTextBox.val('');
-      titleTextBox.effect("highlight", {
-        duration: 1500
-      });
-      loadTasks();
+  function onCreatePackageFormSubmit() {
+    var userEmail = $('#user-email').val(); //TODO: check it is an actual email?
+    var sessionName = $('#session-name').val(); //TODO: check it is unique? for that user at least?
+    var sessionType = $('input[name="session-type"]:checked').val();
+    preSubmit();
+    google.script.run.withSuccessHandler(function(resp) {
+      postSubmit();
+      //window.alert('Successfully created package for '+sessionName+'. Please navigate to '+resp.website.getUrl());
+      showResponse(resp);
     }).withFailureHandler(showError)
-      .addTask(taskListId, title);
+      .createPackage(userEmail, sessionName, sessionType);
+
     return false;
   }
 
@@ -123,5 +43,46 @@
   function showError(error) {
     console.log(error);
     window.alert('An error has occurred, please try again.');
+    postSubmit();
   }
+
+  function showResponse(resp){
+    console.log(JSON.stringify(resp));
+    var html = "<legend id='legend'>Your session package was created!</legend>";
+    html+='<h2>Your session support</h2>';
+    html+='<p>You (and your students) can see the session structure, with links to forms, etc. at <a href="'+resp.website.url+'" target="_new">'+resp.website.url+'</a></p>';
+
+    //TODO: add other useful links like the session folder, questionnaire responses, ...
+
+    $('#package-fields').html(html);
+  }
+
+  (function(document) {
+    var metas = document.getElementsByTagName('meta'),
+        changeViewportContent = function(content) {
+            for (var i = 0; i < metas.length; i++) {
+                if (metas[i].name == "viewport") {
+                    metas[i].content = content;
+                }
+            }
+        },
+        initialize = function() {
+            changeViewportContent("width=device-width, minimum-scale=1.0, maximum-scale=1.0");
+        },
+        gestureStart = function() {
+            changeViewportContent("width=device-width, minimum-scale=0.25, maximum-scale=1.6");
+        },
+        gestureEnd = function() {
+            initialize();
+        };
+
+
+    if (navigator.userAgent.match(/iPhone/i)) {
+        initialize();
+
+        document.addEventListener("touchstart", gestureStart, false);
+        document.addEventListener("touchend", gestureEnd, false);
+    }
+})(document);
+
 </script>
